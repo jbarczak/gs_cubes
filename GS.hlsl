@@ -56,15 +56,11 @@ uniform row_major float4x4 g_ViewProj;
 void GenerateTransformedBox( out float4 v[8], float4 R0, float4 R1, float4 R2 )
 {
     // All of the canonical box verts are +- 1, transformed by the 3x4 matrix { R0,R1,R2}
-    // 
+    //    This boils down to just offsetting from the box center with different signs for each vert
+    //
     // Instead of transforming each of the 8 verts, we can exploit the distributive law
     //   for matrix multiplication and do the extrusion in clip space
     //
-   //float4 center = mul( float4( R0.w,R1.w,R2.w,1), g_ViewProj );
-   //float4 X      = mul( float4( R0.xyz,0), g_ViewProj );
-   //float4 Y      = mul( float4( R1.xyz,0), g_ViewProj );
-   //float4 Z      = mul( float4( R2.xyz,0), g_ViewProj );
-   //
     float4 center =float4( R0.w,R1.w,R2.w,1);
     float4 X = float4( R0.x,R1.x,R2.x,0);
     float4 Y = float4( R0.y,R1.y,R2.y,0);
@@ -87,10 +83,6 @@ void GenerateTransformedBox( out float4 v[8], float4 R0, float4 R1, float4 R2 )
     v[5] = t2 - Y;
     v[6] = t4 - Y;
     v[7] = t3 - Y;
-
-  // [unroll]
-  // for( int i=0; i<8; i++ )
-  //     v[i] = mul(v[i],g_ViewProj);
 }
 
 

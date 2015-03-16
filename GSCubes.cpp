@@ -1,10 +1,4 @@
 
-// flop counts:  VS version: 224 flops/box
-//               GS version: 108 flops/box
-
-// curious.  the no-gs version is 5x slower on intel.  Why?
-//  It's not the use of strips...
-
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -19,7 +13,7 @@
 #include "ShaderAutoGen\VS_WithoutGS.h"
 #include "ShaderAutoGen\PS.h"
 
-class VCacheWindow : public Simpleton::DX11WindowController
+class GSCubesWindow : public Simpleton::DX11WindowController
 {
 public:
     enum 
@@ -27,6 +21,14 @@ public:
         BOX_COUNT=25000,
         INDEX_COUNT=14,
         INDEX_COUNT_LIST=36
+    };
+
+    enum DrawMode
+    {
+        DRAW_INSTANCED,
+        DRAW_UNINSTANCED,
+        DRAW_GS,
+        NUM_MODES
     };
 
     Simpleton::DX11PipelineState m_PSO_NoInstance;
@@ -45,7 +47,8 @@ public:
     Simpleton::ComPtr<ID3D11ShaderResourceView> m_pBoxInstancesSRV;
     Simpleton::ComPtr<ID3D11Buffer> m_pUninstancedBoxIndices;
 
-    bool m_bUseGS;
+  
+    uint m_nDrawMode;
 
     void CreateBoxInstances( uint nBoxes, ID3D11Device* pDev )
     {
@@ -254,26 +257,21 @@ public:
         m_PSO_NoInstance.GetResourceSchema()->CreateResourceSet( &m_Resources_NoInstance, pWindow->GetDevice() );
         CreateBoxInstances(BOX_COUNT,pWindow->GetDevice());
 
-        m_bUseGS = false;
-
+        m_nDrawMode=0;
         return true;
     }
         
     virtual void OnKeyDown( Simpleton::Window* pWindow, KeyCode eKey ) 
     {
-        switch( eKey )
-        {
-        case KEY_G:
-            m_bUseGS = !m_bUseGS;
-            break;
-        }
+        m_nDrawMode++;
     };
 
 
     virtual void OnFrame( Simpleton::DX11Window* pWindow )
     {
-        float black[4] = {0.2,0.2,0.2,1};
+        float grey[4] = {0.2,0.2,0.2,1};
         float red[4] = {0.2,0,0,1};
+        float green[4] = {0,0.2,0,1};
         ID3D11Device* pDev = pWindow->GetDevice();
         ID3D11DeviceContext* pCtx = pWindow->GetDeviceContext();
         ID3D11RenderTargetView* pRTV = pWindow->GetBackbufferRTV();
@@ -281,11 +279,9 @@ public:
         D3D11_VIEWPORT vp  = pWindow->BuildViewport();
         D3D11_RECT scissor = pWindow->BuildScissorRect();
 
-        float* pClearColor = m_bUseGS ? red : black;
-
+        
         pCtx->RSSetViewports(1,&vp);
         pCtx->RSSetScissorRects(1,&scissor);
-        pCtx->ClearRenderTargetView( pWindow->GetBackbufferRTV(), pClearColor );
         pCtx->ClearDepthStencilView( pWindow->GetBackbufferDSV(), D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL,1,0);
         
         Simpleton::Vec3f eye(0,10,-10);
@@ -323,39 +319,54 @@ public:
 
         pCtx->OMSetRenderTargets( 1, &pRTV, pWindow->GetBackbufferDSV() ); 
       
-        if( m_bUseGS )
+
+        uint mode = m_nDrawMode % NUM_MODES;
+        switch(mode)
         {
-            ID3D11Buffer* pBuffers[2] = { m_pBoxInstances };
-            uint pStrides[2] = {48};
-            uint pOffsets[2] = {0,0};
+        case DRAW_GS:
+            {
+                pCtx->ClearRenderTargetView( pWindow->GetBackbufferRTV(), red );
+                ID3D11Buffer* pBuffers[2] = { m_pBoxInstances };
+                uint pStrides[2] = {48};
+                uint pOffsets[2] = {0,0};
 
-            m_PSO_GS.Apply(pCtx);
-            m_Resources_GS.Apply(pCtx);
+                m_PSO_GS.Apply(pCtx);
+                m_Resources_GS.Apply(pCtx);
 
-            pCtx->IASetVertexBuffers( 0,1,pBuffers,pStrides, pOffsets );
-            pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST );
-            pCtx->Draw( BOX_COUNT, 0 );
-        }
-        else
-        {
-            m_PSO_NoInstance.Apply(pCtx);
-            m_Resources_NoInstance.Apply(pCtx);
-            pCtx->IASetIndexBuffer( m_pUninstancedBoxIndices, DXGI_FORMAT_R32_UINT, 0 );
-            pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-            pCtx->DrawIndexed( BOX_COUNT*36, 0,0);
+                pCtx->IASetVertexBuffers( 0,1,pBuffers,pStrides, pOffsets );
+                pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST );
+                pCtx->Draw( BOX_COUNT, 0 );
+            }
+            break;
+        case DRAW_INSTANCED:
+            {             
+                               
+               pCtx->ClearRenderTargetView( pWindow->GetBackbufferRTV(), green );
+               ID3D11Buffer* pBuffers[2] = { m_pUnitBoxVerts, m_pBoxInstances };
+               uint pStrides[2] = {16,48};
+               uint pOffsets[2] = {0,0};
+           
+               m_PSO_NoGS.Apply(pCtx);
+               m_Resources_NoGS.Apply(pCtx);
+           
+               pCtx->IASetVertexBuffers( 0,2,pBuffers,pStrides, pOffsets );
+               pCtx->IASetIndexBuffer(m_pUnitBoxIndices,DXGI_FORMAT_R32_UINT,0);
+               pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+           
+               pCtx->DrawIndexedInstanced( INDEX_COUNT_LIST, BOX_COUNT, 0, 0, 0 );
 
-           //ID3D11Buffer* pBuffers[2] = { m_pUnitBoxVerts, m_pBoxInstances };
-           //uint pStrides[2] = {16,48};
-           //uint pOffsets[2] = {0,0};
-           //
-           //m_PSO_NoGS.Apply(pCtx);
-           //m_Resources_NoGS.Apply(pCtx);
-           //
-           //pCtx->IASetVertexBuffers( 0,2,pBuffers,pStrides, pOffsets );
-           //pCtx->IASetIndexBuffer(m_pUnitBoxIndices,DXGI_FORMAT_R32_UINT,0);
-           //pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
-           //
-           //pCtx->DrawIndexedInstanced( INDEX_COUNT_LIST, BOX_COUNT, 0, 0, 0 );
+            }
+            break;
+        case DRAW_UNINSTANCED:
+            {
+                pCtx->ClearRenderTargetView( pWindow->GetBackbufferRTV(), grey );
+                m_PSO_NoInstance.Apply(pCtx);
+                m_Resources_NoInstance.Apply(pCtx);
+                pCtx->IASetIndexBuffer( m_pUninstancedBoxIndices, DXGI_FORMAT_R32_UINT, 0 );
+                pCtx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+                pCtx->DrawIndexed( BOX_COUNT*36, 0,0);
+            }
+            break;
         }
       
     }
@@ -363,7 +374,8 @@ public:
 
 int main()
 {
-    VCacheWindow wc;
+    GSCubesWindow wc;
+
     Simpleton::DX11Window* pWin = Simpleton::DX11Window::Create( 512,512,Simpleton::DX11Window::FPS_TITLE,&wc);
     while( pWin->DoEvents() )
         pWin->DoFrame();
