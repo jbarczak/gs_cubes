@@ -50,6 +50,9 @@
     <ClInclude Include="ShaderAutoGen\VS_WithoutGS.h">
       <Filter>shaders\autogen</Filter>
     </ClInclude>
+    <ClInclude Include="ShaderAutoGen\VS_Uninstanced.h">
+      <Filter>shaders\autogen</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GSCubes.cpp">

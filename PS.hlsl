@@ -1,6 +1,4 @@
-
-
- row_major float4x4 g_RasterToWorld;
+row_major float4x4 g_RasterToWorld;
 
 float4 main( float4 v : SV_Position ) : SV_Target
 {

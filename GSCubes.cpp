@@ -18,7 +18,7 @@ class GSCubesWindow : public Simpleton::DX11WindowController
 public:
     enum 
     {
-        BOX_COUNT=25000,
+        BOX_COUNT=250000,
         INDEX_COUNT=14,
         INDEX_COUNT_LIST=36
     };
@@ -264,6 +264,24 @@ public:
     virtual void OnKeyDown( Simpleton::Window* pWindow, KeyCode eKey ) 
     {
         m_nDrawMode++;
+        switch( m_nDrawMode % NUM_MODES )
+        {
+        case DRAW_INSTANCED:
+            {
+                printf("NOW USING INSTANCING\n");
+            }
+            break;
+        case DRAW_UNINSTANCED:
+            {
+                printf("NOW USING NON INSTANCING\n");
+            }
+            break;
+        case DRAW_GS:
+            {
+                printf("NOW USING GS\n");
+            }
+            break;
+        }
     };
 
 
