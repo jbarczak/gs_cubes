@@ -48,6 +48,7 @@ public:
     Simpleton::ComPtr<ID3D11Buffer> m_pUninstancedBoxIndices;
 
   
+	uint m_nDrawModePrevious;
     uint m_nDrawMode;
 
     void CreateBoxInstances( uint nBoxes, ID3D11Device* pDev )
@@ -257,31 +258,41 @@ public:
         m_PSO_NoInstance.GetResourceSchema()->CreateResourceSet( &m_Resources_NoInstance, pWindow->GetDevice() );
         CreateBoxInstances(BOX_COUNT,pWindow->GetDevice());
 
+		m_nDrawModePrevious = NUM_MODES;
         m_nDrawMode=0;
         return true;
     }
+
+	void SetDrawMode(uint mode)
+	{
+		if (mode != m_nDrawModePrevious)
+		{
+			m_nDrawModePrevious = mode;
+			mode = mode % NUM_MODES;
+			switch (mode)
+			{
+				case DRAW_INSTANCED:
+				{
+					printf("NOW USING INSTANCING\n");
+				}
+					break;
+				case DRAW_UNINSTANCED:
+				{
+					printf("NOW USING NON INSTANCING\n");
+				}
+					break;
+				case DRAW_GS:
+				{
+					printf("NOW USING GS\n");
+				}
+					break;
+			}
+		}
+	}
         
     virtual void OnKeyDown( Simpleton::Window* pWindow, KeyCode eKey ) 
     {
         m_nDrawMode++;
-        switch( m_nDrawMode % NUM_MODES )
-        {
-        case DRAW_INSTANCED:
-            {
-                printf("NOW USING INSTANCING\n");
-            }
-            break;
-        case DRAW_UNINSTANCED:
-            {
-                printf("NOW USING NON INSTANCING\n");
-            }
-            break;
-        case DRAW_GS:
-            {
-                printf("NOW USING GS\n");
-            }
-            break;
-        }
     };
 
 
@@ -337,7 +348,7 @@ public:
 
         pCtx->OMSetRenderTargets( 1, &pRTV, pWindow->GetBackbufferDSV() ); 
       
-
+		SetDrawMode(m_nDrawMode);
         uint mode = m_nDrawMode % NUM_MODES;
         switch(mode)
         {
