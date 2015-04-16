@@ -2,10 +2,6 @@
 Let's look at a simple, constrained test case.   Suppose I want to render a very large number of oriented boxes.  That makes for a rather boring scene, yes, but there are legitimate use cases in which I might want to do it.   I might have a deferred renderer that's rendering light bounding volumes, or maybe I'm doing an object space AO technique like Oat, Shopf, and I published in ShaderX7  "Deferred Occclusion From Analytic Surfaces".   Or, maybe I'm rendering lots of AABBs for occlusion culling.   Let's suppose for a moment that this is thing I'm interested in.  How do I do this as fast as possible?
 
 
-An oriented box can be defined by a 3x4 transform matrix which deforms an ordinary unit cube into the box we're looking for:
-<matrix>
-
-
 For our experiments, we'll render the boxes using a simple pixel shader the uses derivative trickery to extract a normal, and then does diffuse lighting.  This is only really to give us something interesting to see and to make sure that we didn't mangle the geometry:
 
 <code>
@@ -16,6 +12,11 @@ All of the code can be found here: <LINK>
 Let's consider three different ways of submitting our boxes. 
 
 Method 1:  The obvious way.
+
+
+An oriented box can be defined by a 3x4 transform matrix which deforms an ordinary unit cube into the box we're looking for:
+<matrix>
+
 
 Let's just render a bunch of instanced boxes.   We have one unit box mesh, and a buffer packed full of transform matrices, and we use an ordinary instanced drawcall.  Our vertex shader looks like this:
 
@@ -46,7 +47,7 @@ The geometric interprettation of this is that instead of expanding our box in wo
 
 The final piece of the puzzle is to minimize the number of verts that our GS emits.  Some clever individual figured out how to represent a cube using a single triangle strip (14 vertices).  See: http://www.asmcommunity.net/forums/topic/?id=6284.  That's a considerable improvement over the 24 verts we might emit if we did it 2 triangles at a time.
 
-Here is the full vertex shader:
+Here is the full geometry shader:
 
 <code>
 
